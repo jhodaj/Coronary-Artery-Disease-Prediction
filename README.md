@@ -56,4 +56,5 @@ R | dplyr | ggplot2 | MCMCpack | LearnBayes | caret | coda
 - `CAD_Logistic_Regression_Presentation` - Presentation Rmd file
 - `CAD_Presentation` - Presentation Beamer Style
 - `heart_disease_uci.csv` — dataset, if redistribution is permitted
+- `references.bib` - References used in the project
 
