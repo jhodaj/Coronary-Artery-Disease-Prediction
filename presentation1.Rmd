@@ -1,0 +1,554 @@
+---
+title: "Bayesian Data Analysis"
+subtitle: "Analyzing the Relationship of Coronary Artery Disease and Various Factors through
+Bayesian Logistic Regression Model" 
+author: "Jezerca Hodaj"
+date: "`r Sys.Date()`"
+output: beamer_presentation
+includes:
+bibliography: references.bib
+link-citations: true 
+header-includes: 
+- \usepackage{amsmath,amssymb}
+- \usetheme{Madrid}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(knitr)
+library(LearnBayes)
+library(DescTools)
+library(latex2exp )
+library(ggplot2)
+library(cowplot)
+library(car)
+library(caret)
+library(MCMCpack)
+library(coda)
+```
+
+## Introduction
+
+- 
+Coronary artery disease (CAD) is a complex multifactorial condition influenced by various demographic, clinical, and lifestyle factors. 
+
+- Understanding the relationship between CAD and its predictors is crucial for accurate risk assessment and personalized intervention strategies.
+
+- This project aims to investigate the association between CAD and multiple predictors using a Bayesian logistic regression model.
+
+
+## Introduction
+
+- The variables that we are using in our model 
+
+
+- \begin{itemize}
+\item age (Age of the patient in years)
+\item sex (Male/Female)
+\item cp chest pain type ([typical angina, atypical angina, non-anginal, asymptomatic])
+\item trestbps resting blood pressure (resting blood pressure (in mm Hg on admission to the hospital))
+\item chol (serum cholesterol in mg/dl)
+\item thalch: maximum heart rate achieved
+\end{itemize}
+
+
+
+## Data Imputing
+
+- Dataset had missing values: [@kaggle]
+
+- Resting Blood Pressure had $60$ missing values
+
+- Serum Cholesterol had $200$ missing values
+
+- Maximum Heart Rate Achieved had $55$ missing values
+
+- Replaced the missing values with the mean conditioned on the sex variable and the group age. 
+
+
+## Data Imputing
+
+- The group ages that the mean was calculated for are: 
+
+\begin{itemize}
+\item 20 - 29,  30 - 39,  40 - 49
+\item 50 - 59,  60 - 69, 70 - 79, > 80
+\end{itemize}
+
+
+## Dechotomizing the response variable 
+
+
+- The response variable takes the values $0,1,2,3,4$.
+
+- We interpreted this as "0 = no heart disease" and "1,2,3,4 = heart disease". 
+
+- Following this reasoning we converted the predicted variable into a binary one
+
+- 0 = no heart disease  
+
+- 1 = heart disease"
+
+
+## Transforming Variables 
+
+
+- The variables sex and chest pain types, were non-numeric categorical variables 
+
+- We transformed the sex variable into a binary variable and the chest pain types variable into a numeric variable. 
+
+\begin{itemize}
+\item Male = 1   \hspace{2 cm}     asymptomatic = 0
+\item Female = 0 \hspace{1.5 cm}  atypical angina = 1
+\item \hspace {3.9 cm}              non-anginal = 2
+\item \hspace {3.5 cm}           typical angina = 3
+\end{itemize} 
+
+
+## Transforming Variables 
+
+- The final look of our dataset 
+
+
+
+![Final Data]("finaldata.jpg")
+
+
+
+## Model Predictors 
+
+- We assume that
+
+- \texttt{age, resting blood pressure, cholesterol, maximum heart rate achieved} are normally distributed. 
+
+- \texttt{sex} is a Bernoulli random variable and \texttt{chest pain type} is a binomial random variable.
+
+## Model Predictors
+
+![Continuous Variables]("normal.jpg")
+
+
+## Model Predictors
+
+![Discrete Variables]("discrete.jpg")
+
+
+## Multicollinearity 
+
+- We need to verify the assumption of weak or nonexistent multicollinearity among the variables, in order to apply logistic regression. 
+
+- So we fit initially a generalized linear model to our data and check the VIF 
+
+
+![VIF]("multicolinearity.jpg")
+
+
+## Multicollinearity
+
+- The VIF is very close to 1 for each of the variables that we want to include in our model. 
+
+- Thus the assumption of no multicolinearity among predictors for the logistic regression is satisfied. 
+
+
+## Frequentist Approach
+
+- Under this approach we assume that our model parameters are fixed unknown quantities that we are need to estimate.
+
+- The response variable follows a Bernoulli distribution with probability of success $p_i$. 
+
+ \begin{align*}
+Y_{i}|p_{i} & \sim \text{Bernoulli}(p_{i})
+\end{align*}
+
+- The model 
+
+\begin{align*}
+& \log\left(\frac{p_i}{1-p_i}\right) = \text{logit}(p_i) \\
+& = \beta_{\text{intercept}} + \beta_{\text{age}} \cdot \text{age}_{i} + \beta_{\text{sex}} \cdot \text{sex}_{i} + \beta_{\text{cp}} \cdot \text{cp}_{i} + \\ 
+& \beta_{\text{trestbps}} \cdot \text{trestbps}_{i}  + \beta_{\text{chol}} \cdot \text{chol}_{i} + \beta_{\text{thalch}} \cdot \text{thalch}_{i}
+\end{align*}
+
+
+## Frequentist approach 
+
+- From here, solving for the predictor parameter $p_i$ we get [@bayes]
+
+![Parameter $p_i$]("parameter.jpg")
+
+- where $x_i$ is the data vector for the ith individual.
+
+
+## Frequentist Approach
+
+
+- Then we can rewrite the distribution of the response variable in terms of the expression for $p_i$: 
+
+\[Y_i \sim \text{Bernoulli}(\frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)}).\]
+
+
+
+
+## Results 
+
+- After running the regression we get the parameter estimates and the corresponding p-values, of whether the variable is significant in the model or not. 
+
+
+![Frequentist Results]("freq_reg.jpg")
+
+
+
+## Results 
+
+- From the previous table we can see that the significant variables in the model are 
+
+- \texttt{age, sex, chest pain type, max heart rate} 
+
+- All four of these variables have very small p-values, almost zero. 
+
+
+## Bayesian Approach 
+
+- Under Bayesian approach we are going to consider two cases [@bda3]
+\begin{itemize}
+\item Non-informative Prior 
+\item Informative Prior 
+\end{itemize}
+
+- In both cases we assume that the parameters follow a normal distribution
+- As before $Y_i \sim \text{Bernoulli}(\frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)})$. 
+- The posterior distribution of the parameters is given by [@bda3]
+
+\begin{align*}
+p(\beta|Y,X) & \propto p(\beta)\cdot p(Y|X, \beta)  \\
+& = N_7(\beta^{0}, \Sigma) \cdot \prod_{i=1}^{n} \Bigg[\frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)}\Bigg]^{y_i} \cdot \Bigg[1 - \frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)}\Bigg]^{1 - y_i}  
+\end{align*}
+
+
+
+
+## Bayesian Approach
+
+\begin{align*}
+p(\beta|Y,X) & \propto N_7(\beta^{0}, \Sigma) \Bigg[\frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)}\Bigg]^{\sum_{i=1}^{n}y_i} \Bigg[1 - \frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)}\Bigg]^{n - \sum_{i=1}^{n}y_i} \\
+\\
+& = N_7(\beta^{0}, \Sigma) \Bigg[\frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)}\Bigg]^{\sum_{i=1}^{n}y_i} \Bigg[\frac{1}{1+\exp(x_{i}\beta)}\Bigg]^{n - \sum_{i=1}^{n}y_i}
+\end{align*}
+
+
+- $\beta^{0}$ and $\Sigma$ are specified for each of these two scenarios described in the next sections. 
+
+
+## Non-Informative Prior
+
+- We will assume that the $\beta_{i} \sim N(0, 1000)$, for $i = 0,1,\cdots,6$.
+
+- Moreover, we assume that the parameters are independent, and choose the variance covariance matrix to be $\Sigma= 1000I_7$. 
+
+
+\[
+p(\beta|Y,X) \propto N_7(\textbf{0}, 1000I_7) \Bigg[\frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)}\Bigg]^{\sum_{i=1}^{n}y_i} \Bigg[\frac{1}{1+\exp(x_{i}\beta)}\Bigg]^{n - \sum_{i=1}^{n}y_i}
+\]
+
+
+
+![$95\%$ Posterior Intervals]("quantiles1.jpg")
+
+
+## Non-Informative Prior
+
+- The posterior densities of each parameter 
+
+![Posterior Densities for Non-informative Prior]("densities1.jpg")
+
+
+
+## Non-Informative Prior
+
+- Comparing these results with the frequentists logistic regression model
+
+- Both approaches give the same significant predictors 
+
+- \texttt{age, sex, chest pain type, maximum heart rate achieved}
+
+- The following graphs represent the probability of CAD for males and females based on age.
+
+
+## Non-Informative Prior
+
+- We can see that there is a higher probability of having CAD for male patients than female patients at a given age. Cardiovascular disease develops 7 to 10 years later in women than in men. [@maas] 
+![Probability of CAD in males and females]("npriorage2.jpg")
+
+
+## Non-Informative Prior
+
+- These graphs represent the probability of CAD for males and females based on the maximum heart rate achieved during exercise. 
+
+![Maximum Hear Rate Achieved]("mhrate.jpg")
+
+
+## Non-Informative Prior 
+
+- The graphs look similar. 
+
+- It seems counter intuitive for a higher heart rate to have a lower probability of the patient having CAD. Maybe this might occur due to the parameters being correlated in a non-linear way, or due to the fact that we didn't include all the 13 variables in our model. 
+
+- But it seems that for the same maximum heart rate, women have a lower probability of having CAD.
+
+
+## Informative Prior
+
+- For this scenario we are going to use Zellner's prior.
+
+- $\beta^{0} = \textbf{0}$ and $V_{0} = c(X'X)^{-1}$. We choose $c = 10$.
+
+- The posterior distribution 
+
+
+\begin{align*}
+p(\beta|Y,X) & \propto \\
+& N_7(\textbf{0}, 10(X'X)^{-1}) \Bigg[\frac{\exp(x_{i}\beta)}{1+\exp(x_{i}\beta)}\Bigg]^{\sum_{i=1}^{n}y_i} \Bigg[\frac{1}{1+\exp(x_{i}\beta)}\Bigg]^{n - \sum_{i=1}^{n}y_i}
+\end{align*}
+
+
+## Informative Prior
+
+- We fit our regression model using again \texttt{bayes.probit} function 
+- From the output we get the $95\%$ parameters' posterior intervals 
+
+![$95\%$ Parameters' Posterior Intervals]("quantiles2.jpg")
+
+
+
+## Informative Prior
+
+- We notice that these intervals in the case of informative prior distribution are more narrow. 
+
+- This is because the informative prior plays a bigger role now in the posterior distribution of the $\beta_{i}s$. 
+
+- This can be also witnessed from the histograms of the posterior densities 
+
+- Significant variables are again \texttt{age,sex,chest pain type, max heart rate}. 
+
+## Informative Prior
+
+![Posterior Densities for the Informative Prior]("densities2.1.jpg")
+
+
+## Informative Prior 
+
+- Probability of CAD for males and females based on age. 
+
+![Probability of CAD for males and females based on Age]("prage.jpg")
+
+
+## Informative Prior 
+
+- The same trend as before is noticed here as well. 
+
+- We can see some difference between the non-informative prior and the informative prior case. 
+- The relation of age and the probability of having CAD seems more "linear" now. 
+
+- This means that we have a better fit of the model when we use informative prior. 
+
+
+## Informative Prior 
+
+- Probability of CAD for a male and a female versus their maximum heart rate achieved. 
+![Probability of CAD for males and females ]("pmhrate.jpg")
+
+
+## Informative prior
+
+- Both graphs look similar to each other
+
+- They are shifted a little lower now, indicating maybe a smaller probability for males and females to have CAD for a given maximum heart rate when we have prior information about the parameters. 
+
+
+## Bayes Factors 
+
+- In order to determine once more which of the six variables are significant in our model,
+we compute the Bayes factors. 
+
+- We exclude one at a time each variable from the model, and then take the ratio of the  predictive posterior densities of the full model with the reduced model. [@bda3]
+
+
+\[
+\text{Bayes Factor } = \frac{m(y| \text{full model})}{m(y|\text{reduced model})}
+\]
+
+- In \texttt{R} we compute the $\log(m(y))$ for each model and then take the ratio of their respective $\exp[\log(m(y))]$.  
+
+## Bayes Factors 
+
+- The Bayes factor when we exclude the \texttt{age} variable from the model is 
+
+\[
+\text{Bayes Factor}_{age} = \frac{\exp[\log{(m(y|\text{full model}))}]}{\exp[\log(m(y|\text{reduced model}))]} = 1947.138 .
+\]
+
+- This factor is much bigger than $1$, a clear indicator of the significance of the variable \texttt{age} in our model.
+
+![Loglikelihood and Bayes Factor for Age]("bfage.jpg")
+
+
+## Bayes Factors
+
+- The Bayes factor when we exclude the \texttt{sex} variable from the model is 
+
+\[
+\text{Bayes Factor}_{\text{sex}} = \frac{\exp[\log{(m(y|\text{full model}))}]}{\exp[\log(m(y|\text{reduced model}))]} = 10722437.
+\]
+
+Since the Bayes factor is greater than $1$, the \texttt{sex} variable is significant in our model.
+
+
+![Loglikelihood and Bayes Factor for Sex]("bfsex.jpg")
+
+
+## Bayes Factors 
+
+- The Bayes factor when we exclude the \texttt{chest pain type} variable from the model is 
+\begin{align*}
+\text{Bayes Factor}_{\text{chest pain}} & = \frac{\exp[\log{(m(y|\text{full model}))}]}{\exp[\log(m(y|\text{reduced model}))]} = 215543568 > 1.
+\end{align*}
+
+- This factor is much bigger than $1$, which again indicates the significance of the variable \texttt{chest pain type} in our model. 
+- This was expected, when we refer back to the original paper where this data set is coming from, International Application of a New Probability Algorithm for the Diagnosis of CAD.[@heart] 
+- According to the authors any study that doesn't include the \texttt{chest pain type} variable can't have reliable results. To them this was the most important variable. 
+
+
+![Loglikelihood and Bayes Factor for Chest Pain]("bfcp.jpg")
+
+
+
+## Bayes Factors
+
+- Lastly, we compute the Bayes factors for the other three variable \texttt{resting blood pressure, cholesterol, max heart rate achieved}.
+
+- The results below confirm to us that \texttt{resting blood pressure, cholesterol} are not significant in our model and that \texttt{maximum heart rate achieved} is important. 
+
+- The Bayes factors for these three variables are:  
+
+\begin{align*}
+\text{Bayes Factor}_{\text{trestbps}} & = 0.7140534 < 1 \\
+\\
+\text{Bayes Factor}_{\text{chol}} & = 0.3754185 < 1 \\
+\\
+\text{Bayes Factor}_{\text{thalch}} & =  632428.5 > 1
+\end{align*}
+
+
+
+## Bayes Factors 
+
+
+![Loglikelihood and Bayes Factors for the other variables]("bfother.jpg")
+
+
+## Predicting CAD
+
+- Now we want to use our model to predict whether a patient has CAD or not given a set of attributes.
+
+- In order to make predictions we initially split our dataset into training and testing. 
+
+- $80\%$ of our data was used for the training mission and $20\%$ of our data for testing. 
+
+
+## Predicting CAD
+
+- Prediction Probabilities and Prediction Outcomes
+
+![Predictions for CAD]("predict.jpg")
+
+
+## MCMC Simulation
+
+- In this section we employ Markov Chain Monte Carlo for logistic regression.
+
+- Using the \texttt{library(MCMCpack)} and the \texttt{MCMClogit} function, we sample from the posterior distribution of the Logistic Regression using a random walk Metropolis Algorithm. 
+
+
+- We perform a pilot run to determine the number of iterations, burnins, and thinning. We will run $62900$ iterations of the Metropolis Algorithm, using a $\texttt{burnin} = 56$, and $\texttt{thin} = 17$. 
+
+- We then ran the chain again with the new specifications for number of iterations, burnins and thinning. 
+
+
+## MCMC Simulation 
+
+![Raftery-Lewis Diagnostics]("diagnostics.jpg")
+
+
+## MCMC Simulation
+
+
+![\texttt{MCMClogit} Function]("mcmc.jpg")
+
+## MCMC Simulation
+
+![Summary of MCMC simulation]("quantiles3.jpg")
+
+## MCMC Convergence 
+
+- We perform the Heidelberg-Welch convergence test and all the parameters pass the test. The chain values are sampled from a stationary distribution. 
+
+
+## MCMC Convergence
+
+![Heidelberg-Welch Convergence Test]("convergence.jpg")
+
+
+
+## MCMC Trace and Density Plots
+
+
+![Trace and Density Plots for the first 4 parameters]("plot1.jpg")
+
+
+## MCMC Trace and Density Plots
+
+
+![Trace and Density Plots for the other 3 parameters]("plot2.jpg")
+
+
+## Conclusions 
+
+
+- We started this project by first taking care of the missing values in our dataset. Three of our variables of interest had missing values. We replaced the missing values with the average conditioned on age and sex. 
+
+- In order to use Logistic Regression in our data, we checked that the assumption of no multicollinearity was not violated by computing the $VIF$ for our variables.  
+
+
+- Two different approaches were taken for the logistic regression, the frequentist approach and the Bayesian approach. For the Bayesian approach we considered two cases, non-informative prior and informative prior distribution for the parameters.
+
+
+## Conclusions
+
+- The three models gave results that agree with each other. The most significant predictors in explaining the relationship with the response variable, CAD, were \texttt{age, sex, chest pain type, max heart rate achieved}. 
+
+
+- This was also backed up by computing the Bayes factors for all the variables. Significant variables had Bayes factors greater than 1, and the two non-significant variables had Bayes factors less than 1. 
+
+- We also performed MCMC sampling from the posterior distribution of the logistic regression model, using Metropolis Algorithm and derived posterior distributions for the model parameters.  
+
+
+## Conclusions 
+
+-  The MCMC simulations give parameter posterior intervals that are very close to the ones from the Bayesian logistic regression. The chain converges, indicating that the chain values are sampled from a stationary distribution. 
+
+- The models that we employed in this project conclude that \texttt{age, sex, chest pain type, max heart rate achieved} are crucial in determining the presence of Coronary Artery Disease in patients. 
+
+
+
+## References
+
+
+<div id="refs"></div>
+
+
+## The End 
+
+
+\center{Thank you!}
+
