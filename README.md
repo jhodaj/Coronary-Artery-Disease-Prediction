@@ -52,6 +52,8 @@ R | dplyr | ggplot2 | MCMCpack | LearnBayes | caret | coda
 
 - `README.md` — project overview and results
 - `CAD_Logistic_Regression_Analysis.Rmd` — complete analysis and modeling workflow
-- `BDA-Final-Project1.pdf` — full project report
+- `CAD_Logistic_Regression_Report.pdf` — full project report
+- `CAD_Logistic_Regression_Presentation` - Presentation Rmd file
+- `CAD_Presentation` - Presentation Beamer Style
 - `heart_disease_uci.csv` — dataset, if redistribution is permitted
 
